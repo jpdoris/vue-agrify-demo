@@ -1,28 +1,37 @@
 <template>
-  <div id="app">
-    <img alt="Vue logo" src="./assets/logo.png" />
-    <HelloWorld msg="Welcome to Your Vue.js App" />
-  </div>
+  <v-app>
+    <v-app-bar app color="#6b745e" dark min-height="80" class="py-2 navbar">
+      <div class="d-flex align-center">
+        <v-img
+          alt="Agrify Logo"
+          class="shrink mr-2"
+          contain
+          src="@/assets/agrify-logo-horizontal-white-july.webp"
+          transition="scale-transition"
+          width="250"
+        />
+      </div>
+
+      <v-spacer></v-spacer>
+
+      <v-btn text>
+        <span class="mr-2">Code Challenge</span>
+      </v-btn>
+    </v-app-bar>
+
+    <v-main>
+      <InteractiveForm />
+    </v-main>
+  </v-app>
 </template>
 
 <script>
-import HelloWorld from "./components/HelloWorld.vue";
+import InteractiveForm from '@/components/InteractiveForm';
 
 export default {
   name: "App",
   components: {
-    HelloWorld
+    InteractiveForm
   }
 };
 </script>
-
-<style lang="scss">
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
-</style>

@@ -7,12 +7,13 @@
           <v-text-field
             v-if="item.category === 'Time'"
             :name="index"
-            :value="getValue(fieldData[index])"
-            :v-model="getValue(fieldData[index])"
+            :value="getValue(fieldData[index], true)"
+            :v-model="getValue(constants[index])"
             :label="item.label"
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            @keyup="updateValues($event)"
           />
         </div>
       </v-col>
@@ -22,12 +23,13 @@
           <v-text-field
             v-if="item.category === 'Heat/Cooling'"
             :name="index"
-            :value="getValue(fieldData[index])"
-            :v-model="getValue(fieldData[index])"
+            :value="getValue(fieldData[index], true)"
+            :v-model="getValue(constants[index])"
             :label="item.label"
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            @keyup="updateValues($event)"
           />
         </div>
       </v-col>
@@ -37,12 +39,13 @@
           <v-text-field
             v-if="item.category === 'Weights and Measures'"
             :name="index"
-            :value="getValue(fieldData[index])"
-            :v-model="getValue(fieldData[index])"
+            :value="getValue(fieldData[index], true)"
+            :v-model="getValue(constants[index])"
             :label="item.label"
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            @keyup="updateValues($event)"
           />
         </div>
       </v-col>
@@ -52,14 +55,14 @@
           <v-text-field
             v-if="item.category === 'Staff Expense'"
             :name="index"
-            :value="getValue(fieldData[index])"
-            :v-model="getValue(fieldData[index])"
+            :value="getValue(fieldData[index], true)"
+            :v-model="getValue(constants[index])"
             :label="item.label"
             :type="item.type"
             :readonly="item.readOnly"
             :prefix="setPrefix(item.type)"
             :class="{ noline: item.readOnly }"
-            @keyup="updateValues"
+            @keyup="updateValues($event)"
           />
         </div>
       </v-col>
@@ -72,8 +75,8 @@ import json from '@/data/constants.json';
 
 export default {
   name: 'InteractiveForm',
-  data: () => ({
-    return: {
+  data() {
+    return {
       constants: { key: null },
       fieldData: {
         index: {
@@ -83,12 +86,14 @@ export default {
           readOnly: true,
           category: '',
           calculate: '',
-        },
-      },
-    },
-  }),
+        }
+      }
+    }
+  },
   beforeMount() {
+    // mount json to a data property
     this.fieldData = json.fields;
+    // create another data set we can use for calculations
     let tmpConstants = {};
     Object.entries(this.fieldData).forEach(([key, val]) => {
       tmpConstants[key] = val.defaultValue;
@@ -98,32 +103,44 @@ export default {
   },
   methods: {
     calculateValues() {
+      // need to process the data again to update the calculations that weren't available in the beforeMount() hook
       Object.entries(this.constants).forEach(([key, val]) => {
         if (val === undefined) {
           this.constants[key] = this.getValue(this.fieldData[key]);
-          this.fieldData[key].value = Number(this.constants[key]);
+          this.fieldData[key].value = this.getValue(this.constants[key], true);
         }
       });
     },
-    updateValues(field) {
-      console.log('calculateValues() called on ', field); // TODO
-      Object.entries(this.constants).forEach(([key, val]) => {
-        if (val === undefined) {
+    updateValues(event) {
+      // update objects when input is changed
+      const fieldname = event.target.name;
+      const fieldval = event.target.value;
+      this.constants[fieldname] = fieldval;
+      Object.entries(this.constants).forEach(([key]) => {
+        if (this.hasCalculation(this.fieldData[key])) {
           this.constants[key] = this.getValue(this.fieldData[key]);
-          this.fieldData[key].value = Number(this.constants[key]);
+          this.fieldData[key].value = this.getValue(this.constants[key], true);
         }
       });
     },
-    getValue(item) {
+    getValue(item, format = false) {
+      // get values from updated object(s) to assign to form fields
       if (this.hasCalculation(item)) {
+        // generate calculations to evaluate
         const expr = item.calculate
           .toString()
-          .replace(/this.constant_/g, 'this.constants.constant_');
+          .replace(/this.constant_/g, 'this.constants.constant_'); // fix bad json data
+        /**
+         *  eval() is evil. 
+         *  But in the interest of time, rather than work out how to pass the Vue instance ('this')
+         *  to a more secure and performant sandbox function construct, we'll assume this data is 
+         *  trusted and small.
+         */
         let ev = eval(expr);
-        ev = isNaN(ev) ? null : this.format(ev, item.type);
+        ev = format ? this.format(ev, item.type) : ev;
         return ev;
       }
-      return this.format(item.defaultValue, item.type);
+      return format ? this.format(item.defaultValue, item.type) : item.defaultValue;
     },
     hasCalculation(item) {
       if (Object.prototype.hasOwnProperty.call(item, 'calculate')) {
@@ -144,7 +161,7 @@ export default {
         maximumFractionDigits: digits,
         minimumFractionDigits: digits,
       }).format(val);
-    },
+    }
   },
 };
 </script>
@@ -158,7 +175,7 @@ export default {
     .v-input__slot {
       &::after {
         width: 0;
-        content: none;
+        content: unset;
       }
     }
   }

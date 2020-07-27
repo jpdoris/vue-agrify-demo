@@ -1,4 +1,7 @@
-# agrify
+# Agrify - Code Challenge
+
+Create a Vue + Vuetify 2.x application that reads the attached .json file and generates the following interactive form:
+![Example-form](src/assets/interactive-form.png)
 
 ## Project setup
 ```

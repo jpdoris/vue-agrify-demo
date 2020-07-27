@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid>
+  <v-container>
     <v-row class="mt-4">
       <v-col cols="3" class="px-5">
         <div class="subheading">Time</div>
@@ -13,6 +13,7 @@
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            :append-outer-icon="fieldData[index].append"
             @keyup="updateValues($event)"
           />
         </div>
@@ -29,6 +30,7 @@
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            :append-outer-icon="fieldData[index].append"
             @keyup="updateValues($event)"
           />
         </div>
@@ -45,6 +47,7 @@
             :type="item.type"
             :readonly="item.readOnly"
             :class="{ noline: item.readOnly }"
+            :append-outer-icon="fieldData[index].append"
             @keyup="updateValues($event)"
           />
         </div>
@@ -62,6 +65,7 @@
             :readonly="item.readOnly"
             :prefix="setPrefix(item.type)"
             :class="{ noline: item.readOnly }"
+            :append-outer-icon="fieldData[index].append"
             @keyup="updateValues($event)"
           />
         </div>
@@ -86,6 +90,8 @@ export default {
           readOnly: true,
           category: '',
           calculate: '',
+          append: '',
+          appendColor: ''
         }
       }
     }
@@ -116,10 +122,18 @@ export default {
       const fieldname = event.target.name;
       const fieldval = event.target.value;
       this.constants[fieldname] = fieldval;
-      Object.entries(this.constants).forEach(([key]) => {
+      Object.entries(this.constants).forEach(([key, val]) => {
         if (this.hasCalculation(this.fieldData[key])) {
           this.constants[key] = this.getValue(this.fieldData[key]);
           this.fieldData[key].value = this.getValue(this.constants[key], true);
+          let icon = 'arrow_upward';
+          let iconColor = 'red';
+          if (val < this.constants[key]) {
+            icon = 'arrow_downward';
+            iconColor = 'green';
+          }
+          this.fieldData[key].append = icon;
+          this.fieldData[key].appendColor = iconColor;
         }
       });
     },
@@ -170,14 +184,20 @@ export default {
 .subheading {
   font-weight: bold;
 }
-.v-input--is-readonly {
-  .v-input__control {
-    .v-input__slot {
-      &::after {
-        width: 0;
-        content: unset;
-      }
-    }
-  }
+// .v-input--is-readonly {
+//   .v-input__control {
+//     .v-input__slot {
+//       &::after {
+//         width: 0;
+//         content: unset;
+//       }
+//     }
+//   }
+// }
+.arrow-up {
+  color: red;
+}
+.arrow-down {
+  color: green;
 }
 </style>

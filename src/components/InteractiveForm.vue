@@ -3,70 +3,62 @@
     <v-row class="mt-4">
       <v-col cols="3" class="px-5">
         <div class="subheading">Time</div>
-        <div v-for="(item, index) in fieldData" :key="index">
+        <div v-for="(value, name) in fieldData" :key="name">
           <v-text-field
-            v-if="item.category === 'Time'"
-            :name="index"
-            :value="getValue(fieldData[index], true)"
-            :v-model="getValue(constants[index])"
-            :label="item.label"
-            :type="item.type"
-            :readonly="item.readOnly"
-            :class="{ noline: item.readOnly }"
-            :append-outer-icon="fieldData[index].append"
-            @keyup="updateValues($event)"
+            v-if="fieldData[name].category === 'Time'"
+            :name="name"
+            :label="value.label"
+            :type="value.type"
+            :readonly="value.readOnly"
+            :prefix="setPrefix(value.type)"
+            :append-outer-icon="value.append"
+            v-model.lazy="constants[name]"
           />
         </div>
       </v-col>
       <v-col cols="3" class="px-5">
         <div class="subheading">Heat/Cooling</div>
-        <div v-for="(item, index) in fieldData" :key="index">
+        <div v-for="(value, name) in fieldData" :key="name">
           <v-text-field
-            v-if="item.category === 'Heat/Cooling'"
-            :name="index"
-            :value="getValue(fieldData[index], true)"
-            :v-model="getValue(constants[index])"
-            :label="item.label"
-            :type="item.type"
-            :readonly="item.readOnly"
-            :class="{ noline: item.readOnly }"
-            :append-outer-icon="fieldData[index].append"
-            @keyup="updateValues($event)"
+            v-if="fieldData[name].category === 'Heat/Cooling'"
+            :name="name"
+            :label="value.label"
+            :type="value.type"
+            :readonly="value.readOnly"
+            :prefix="setPrefix(value.type)"
+            :append-outer-icon="value.append"
+            v-model.lazy="constants[name]"
           />
         </div>
       </v-col>
       <v-col cols="3" class="px-5">
         <div class="subheading">Weights and Measures</div>
-        <div v-for="(item, index) in fieldData" :key="index">
+        <div v-for="(value, name) in fieldData" :key="name">
           <v-text-field
-            v-if="item.category === 'Weights and Measures'"
-            :name="index"
-            :value="getValue(fieldData[index], true)"
-            :v-model="getValue(constants[index])"
-            :label="item.label"
-            :type="item.type"
-            :readonly="item.readOnly"
-            :class="{ noline: item.readOnly }"
-            :append-outer-icon="fieldData[index].append"
-            @keyup="updateValues($event)"
+            v-if="fieldData[name].category === 'Weights and Measures'"
+            :name="name"
+            :label="value.label"
+            :type="value.type"
+            :readonly="value.readOnly"
+            :prefix="setPrefix(value.type)"
+            :append-outer-icon="value.append"
+            v-model.lazy="constants[name]"
           />
         </div>
       </v-col>
       <v-col cols="3" class="px-5">
         <div class="subheading">Staff Expense</div>
-        <div v-for="(item, index) in fieldData" :key="index">
+        <div v-for="(value, name) in fieldData" :key="name">
           <v-text-field
-            v-if="item.category === 'Staff Expense'"
-            :name="index"
-            :value="getValue(fieldData[index], true)"
-            :v-model="getValue(constants[index])"
-            :label="item.label"
-            :type="item.type"
-            :readonly="item.readOnly"
-            :prefix="setPrefix(item.type)"
-            :class="{ noline: item.readOnly }"
-            :append-outer-icon="fieldData[index].append"
-            @keyup="updateValues($event)"
+            ref="input"
+            v-if="value.category === 'Staff Expense'"
+            :name="name"
+            :label="value.label"
+            :type="value.type"
+            :readonly="value.readOnly"
+            :prefix="setPrefix(value.type)"
+            :append-outer-icon="value.append"
+            v-model.lazy="constants[name]"
           />
         </div>
       </v-col>
@@ -76,105 +68,202 @@
 
 <script>
 import json from '@/data/constants.json';
+import _ from 'lodash';
 
 export default {
   name: 'InteractiveForm',
   data() {
     return {
-      constants: { key: null },
-      fieldData: {
-        index: {
-          label: '',
-          type: 'number',
-          defaultValue: null,
-          readOnly: true,
-          category: '',
-          calculate: '',
-          append: '',
-          appendColor: ''
+      constants: {},
+      fieldData: {},
+      inputChanged: false
+    }
+  },
+  beforeMount() {
+    // mount json data to fields obj
+    this.fieldData = json.fields;
+    // create another data model we can use for calculations
+    Object.entries(this.fieldData).map(([key, val]) => {
+      if (Object.prototype.hasOwnProperty.call(val, 'defaultValue')) {
+        this.$set(this.constants, key, this.numberOut(val.defaultValue, val.type));
+        // this.$set(this.constants, key, val.defaultValue);
+      } else {
+        this.$set(this.constants, key, null);
+      }
+    });
+  },
+  mounted() {
+    this.calculateValues();
+    
+  },
+  computed: {
+    // watcher-helper: recreate constants as a new object to maintain reactivity
+    computedConstants: function() {
+        return Object.assign({}, this.constants);
+    }
+  },
+  watch: {
+    // watch constants for changes, then recalculate
+    computedConstants: {
+      deep: true,
+      handler(newVal, oldVal) {
+        const changed = _.transform(newVal, function(result, value, key) {
+          if (!_.isEqual(value, oldVal[key])) {
+            result[key] = (_.isObject(value) && _.isObject(oldVal[key])) ? changed(value, oldVal[key]) : value
+          }
+        });
+
+        const propList = Object.getOwnPropertyNames(changed);
+        if (propList.length === 1) {
+          const deps = this.findDependencies(propList[0]);
+          for (const item of deps.values()) {
+            this.constants[item] = this.getValue(this.fieldData[item]);
+          }
         }
       }
     }
   },
-  beforeMount() {
-    // mount json to a data property
-    this.fieldData = json.fields;
-    // create another data set we can use for calculations
-    let tmpConstants = {};
-    Object.entries(this.fieldData).forEach(([key, val]) => {
-      tmpConstants[key] = val.defaultValue;
-    });
-    this.constants = tmpConstants;
-    this.calculateValues();
-  },
   methods: {
+    findDependencies(property) {
+      const vm = this;
+      const deps = Object.keys(this.fieldData).filter(function(row) {
+        if (Object.prototype.hasOwnProperty.call(vm.fieldData[row], 'calculate')) {
+          if (vm.fieldData[row].calculate.indexOf(property) !== -1) {
+            return row;
+          }
+        }
+      });
+      return deps;
+    },
     calculateValues() {
       // need to process the data again to update the calculations that weren't available in the beforeMount() hook
       Object.entries(this.constants).forEach(([key, val]) => {
-        if (val === undefined) {
-          this.constants[key] = this.getValue(this.fieldData[key]);
-          this.fieldData[key].value = this.getValue(this.constants[key], true);
+        if (val === null) {
+          this.$set(this.constants, key, this.getValue(this.fieldData[key]));
         }
       });
     },
-    updateValues(event) {
-      // update objects when input is changed
-      const fieldname = event.target.name;
-      const fieldval = event.target.value;
-      this.constants[fieldname] = fieldval;
-      Object.entries(this.constants).forEach(([key, val]) => {
-        if (this.hasCalculation(this.fieldData[key])) {
-          this.constants[key] = this.getValue(this.fieldData[key]);
-          this.fieldData[key].value = this.getValue(this.constants[key], true);
-          let icon = 'arrow_upward';
-          let iconColor = 'red';
-          if (val < this.constants[key]) {
-            icon = 'arrow_downward';
-            iconColor = 'green';
-          }
-          this.fieldData[key].append = icon;
-          this.fieldData[key].appendColor = iconColor;
-        }
-      });
-    },
-    getValue(item, format = false) {
-      // get values from updated object(s) to assign to form fields
-      if (this.hasCalculation(item)) {
-        // generate calculations to evaluate
-        const expr = item.calculate
-          .toString()
-          .replace(/this.constant_/g, 'this.constants.constant_'); // fix bad json data
-        /**
-         *  eval() is evil. 
-         *  But in the interest of time, rather than work out how to pass the Vue instance ('this')
-         *  to a more secure and performant sandbox function construct, we'll assume this data is 
-         *  trusted and small.
-         */
-        let ev = eval(expr);
-        ev = format ? this.format(ev, item.type) : ev;
-        return ev;
+    processCalculation(calculation) {
+      // initialize
+      let operator = '';
+      const operands = {
+        left: null,
+        right: null
       }
-      return format ? this.format(item.defaultValue, item.type) : item.defaultValue;
+      const parts = [];
+
+      // 1: split calculation on spaces
+      const split = this.parseExpression(calculation);
+
+      // 2: find parentheses, preserve order and position
+      split.forEach((item, index) => {
+        if (item.match(/\(|\)/) !== null) {
+          // has parentheses, need to eval
+          const expr = item.replace(/\(|\)/g, '');
+          
+          // 3: eval parentheticals
+          const operandsInner = this.parseExpression(expr);
+          parts[index] = this.evalOperation(operandsInner[1], { left: operandsInner[0], right: operandsInner[2] });
+
+        } else {
+          // no parentheses, pass as is
+          parts[index] = item;
+        }
+      });
+
+      // 4: assign results to operands
+      if (parts.length) {
+        operands.left = parts[0];
+        operands.right = parts[2];
+        operator = parts[1];
+      }
+
+      // 5: evaluate operation
+      return this.evalOperation(operator, { left: operands.left, right: operands.right });
     },
-    hasCalculation(item) {
+    parseExpression(expr) {
+      let parts = [];
+      const leftParens = expr.match(/^\((.*)\)/);
+      const rightParens = expr.match(/\((.*)\)$/);
+      if (leftParens !== null) {
+        let remainder = expr.replace(leftParens[0], '');
+        remainder = this.splitExpression(remainder);
+        parts[0] = leftParens[0];
+        parts.push(remainder[0], remainder[1]);
+      } else if (rightParens !== null) {
+        const remainder = expr.replace(rightParens[0], '');
+        parts = this.splitExpression(remainder);
+        parts.push(rightParens[0]);
+      } else {
+        parts = this.splitExpression(expr);
+      }
+
+      return parts;
+    },
+    splitExpression(expr) {
+      return expr
+      .replace(/this\.constant_/g, 'constant_')
+      .replace(/this\.constants\./g, '')
+      .trim()
+      .split(' ');
+    },
+    evalOperation(operator, operands) {
+      let left = operands.left;
+      let right = operands.right;
+
+      if (isNaN(+left)) {
+        left = this.numberIn(this.constants[left]);
+      } else {
+        left = this.numberIn(left);
+      }
+      if (isNaN(+right)) {
+        right = this.numberIn(this.constants[right]);
+      } else {
+        right = this.numberIn(right);
+      }
+
+      const operation = {
+        '+': (left, right) => left + right,
+        '-': (left, right) => left - right,
+        '*': (left, right) => left * right,
+        '/': (left, right) => left / right,
+      };
+
+      const result = operation[operator](left, right);
+      return result;
+    },
+    getValue(item) {
+      // generate calculations to evaluate
+      let result = item.defaultValue;
       if (Object.prototype.hasOwnProperty.call(item, 'calculate')) {
-        return true;
+        result = this.processCalculation(item.calculate);
       }
-      return false;
+      return this.numberOut(result, item.type);
+      // return result;
     },
     setPrefix(type) {
       return type === 'percent' ? '%' : '';
     },
-    format(val, type) {
+    numberIn(val) {
+      const num = Number(val.toString().replace(/,/g, ''));
+      return num;
+    },
+    numberOut(val, type) {
       let digits = 0;
       if (type === 'float') {
         digits = 2;
       }
-      return new Intl.NumberFormat('en-US', {
+      const result = new Intl.NumberFormat('en-US', {
         style: 'decimal',
         maximumFractionDigits: digits,
         minimumFractionDigits: digits,
-      }).format(val);
+      }).format(Math.round(val * 10000) / 10000);
+
+      return result
+    },
+    formatValue() {
+      const type = this.fieldData[this.$refs.input.name].type;
+      this.$refs.input.value = this.numberOut(this.value, type);
     }
   },
 };
@@ -184,16 +273,6 @@ export default {
 .subheading {
   font-weight: bold;
 }
-// .v-input--is-readonly {
-//   .v-input__control {
-//     .v-input__slot {
-//       &::after {
-//         width: 0;
-//         content: unset;
-//       }
-//     }
-//   }
-// }
 .arrow-up {
   color: red;
 }

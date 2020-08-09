@@ -12,7 +12,7 @@
             :readonly="value.readOnly"
             :prefix="setPrefix(value.type)"
             :append-outer-icon="value.append"
-            v-model.lazy="constants[name]"
+            v-model.lazy="formattedConstants[name]"
           />
         </div>
       </v-col>
@@ -27,7 +27,7 @@
             :readonly="value.readOnly"
             :prefix="setPrefix(value.type)"
             :append-outer-icon="value.append"
-            v-model.lazy="constants[name]"
+            v-model.lazy="formattedConstants[name]"
           />
         </div>
       </v-col>
@@ -42,7 +42,7 @@
             :readonly="value.readOnly"
             :prefix="setPrefix(value.type)"
             :append-outer-icon="value.append"
-            v-model.lazy="constants[name]"
+            v-model.lazy="formattedConstants[name]"
           />
         </div>
       </v-col>
@@ -50,7 +50,7 @@
         <div class="subheading">Staff Expense</div>
         <div v-for="(value, name) in fieldData" :key="name">
           <v-text-field
-            ref="input"
+            :ref="name"
             v-if="value.category === 'Staff Expense'"
             :name="name"
             :label="value.label"
@@ -58,7 +58,7 @@
             :readonly="value.readOnly"
             :prefix="setPrefix(value.type)"
             :append-outer-icon="value.append"
-            v-model.lazy="constants[name]"
+            v-model.lazy="formattedConstants[name]"
           />
         </div>
       </v-col>
@@ -75,8 +75,8 @@ export default {
   data() {
     return {
       constants: {},
-      fieldData: {},
-      inputChanged: false
+      formattedConstants: {},
+      fieldData: {}
     }
   },
   beforeMount() {
@@ -85,31 +85,33 @@ export default {
     // create another data model we can use for calculations
     Object.entries(this.fieldData).map(([key, val]) => {
       if (Object.prototype.hasOwnProperty.call(val, 'defaultValue')) {
-        this.$set(this.constants, key, this.numberOut(val.defaultValue, val.type));
-        // this.$set(this.constants, key, val.defaultValue);
+        this.$set(this.constants, key, val.defaultValue);
+        this.$set(this.formattedConstants, key, this.numberOut(val.defaultValue, val.type));
       } else {
         this.$set(this.constants, key, null);
+        this.$set(this.formattedConstants, key, null);
       }
     });
   },
   mounted() {
     this.calculateValues();
-    
   },
   computed: {
     // watcher-helper: recreate constants as a new object to maintain reactivity
     computedConstants: function() {
-        return Object.assign({}, this.constants);
+      return Object.assign({}, this.formattedConstants);
     }
   },
   watch: {
     // watch constants for changes, then recalculate
     computedConstants: {
       deep: true,
-      handler(newVal, oldVal) {
+      handler(newVal, oldVal) {        
+        const vm = this;
         const changed = _.transform(newVal, function(result, value, key) {
           if (!_.isEqual(value, oldVal[key])) {
             result[key] = (_.isObject(value) && _.isObject(oldVal[key])) ? changed(value, oldVal[key]) : value
+            vm.constants[key] = vm.numberIn(value);
           }
         });
 
@@ -118,6 +120,7 @@ export default {
           const deps = this.findDependencies(propList[0]);
           for (const item of deps.values()) {
             this.constants[item] = this.getValue(this.fieldData[item]);
+            this.formattedConstants[item] = this.numberOut(this.getValue(this.fieldData[item]), this.fieldData[item].type);
           }
         }
       }
@@ -140,6 +143,7 @@ export default {
       Object.entries(this.constants).forEach(([key, val]) => {
         if (val === null) {
           this.$set(this.constants, key, this.getValue(this.fieldData[key]));
+          this.$set(this.formattedConstants, key, this.numberOut(this.getValue(this.fieldData[key]), this.fieldData[key].type));
         }
       });
     },
@@ -238,8 +242,7 @@ export default {
       if (Object.prototype.hasOwnProperty.call(item, 'calculate')) {
         result = this.processCalculation(item.calculate);
       }
-      return this.numberOut(result, item.type);
-      // return result;
+      return result;
     },
     setPrefix(type) {
       return type === 'percent' ? '%' : '';
@@ -257,13 +260,9 @@ export default {
         style: 'decimal',
         maximumFractionDigits: digits,
         minimumFractionDigits: digits,
-      }).format(Math.round(val * 10000) / 10000);
+      }).format(val);
 
-      return result
-    },
-    formatValue() {
-      const type = this.fieldData[this.$refs.input.name].type;
-      this.$refs.input.value = this.numberOut(this.value, type);
+      return result;
     }
   },
 };

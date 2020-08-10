@@ -82,8 +82,14 @@ export default {
   beforeMount() {
     // mount json data to fields obj
     this.fieldData = json.fields;
+    const vm = this;
     // create another data model we can use for calculations
     Object.entries(this.fieldData).map(([key, val]) => {
+      if (Object.prototype.hasOwnProperty.call(val, 'calculate')) {
+        vm.fieldData[key].calculate = val.calculate
+        .replace(/this\.constant_/g, 'constant_')
+        .replace(/this\.constants\./g, '')
+      }
       if (Object.prototype.hasOwnProperty.call(val, 'defaultValue')) {
         this.$set(this.constants, key, val.defaultValue);
         this.$set(this.formattedConstants, key, this.numberOut(val.defaultValue, val.type));
